@@ -124,6 +124,7 @@ if __name__ == '__main__':
         elif(build_type == 'guest'):
             BuildGuests(product)
         else :
-            BuildAll(product)
+            BuildHypervisor(product)
+            #BuildAll(product)
     else:
         print 'source platform-device/<platform_name>/build/<guest>'

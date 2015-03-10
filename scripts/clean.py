@@ -94,7 +94,8 @@ if __name__ == '__main__':
         elif(clean_type == 'guest'):
             CleanGuests(product)
         else :
-            CleanAll(product)
+            CleanHypervisor(product)
+            #CleanAll(product)
     else:
         print 'source platform-device/<platform_name>/build/<guest>'
 
