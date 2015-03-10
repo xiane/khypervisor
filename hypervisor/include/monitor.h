@@ -78,9 +78,9 @@ void invalidate_dcache_all(void);
 void flush_dcache_all(void);
 void flush_cache(unsigned long start, unsigned long size);
 uint32_t monitor_load_inst(vmid_t vmid, uint32_t va);
-uint32_t monitor_inst_type(vmid_t vmid, uint32_t va);
-uint32_t monitor_store_inst(vmid_t vmid, uint32_t va, uint32_t type);
-uint32_t monitor_clean_inst(vmid_t vmid, uint32_t va, uint32_t type);
+enum breakpoint_type monitor_inst_type(vmid_t vmid, uint32_t va);
+uint32_t monitor_store_inst(vmid_t vmid, uint32_t va, enum breakpoint_type type);
+uint32_t monitor_clean_inst(vmid_t vmid, uint32_t va, enum breakpoint_type type);
 
 hvmm_status_t monitor_run_guest(struct monitor_vmid *mvmid, uint32_t va);
 hvmm_status_t monitor_break_guest(vmid_t vmid);
