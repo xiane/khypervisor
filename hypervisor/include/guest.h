@@ -3,7 +3,7 @@
 
 #include "armv7_p15.h"
 #include "timer.h"
-#include <log/uart_print.h>
+#include <uart_print.h>
 #include <hvmm_types.h>
 #include <vgic.h>
 #include <guest_hw.h>
