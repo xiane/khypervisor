@@ -16,37 +16,37 @@ else
 include config-default.mk
 endif
 
-HYPERVISOR_SOURCE_DIR=.
-HYPERVISOR_HW_DIR=.
-HYPERVISOR_HW_HWLIB_DIR=.
-COMMON_SOURCE_DIR=.
+HYPERVISOR_SOURCE_DIR=./arch
+HYPERVISOR_HW_DIR=./arch
+HYPERVISOR_HW_HWLIB_DIR=./arch
+COMMON_SOURCE_DIR=./api
 
 BOOTLOADER	= boot.S
 
-OBJS 		= boot.o	\
-	main.o				\
+OBJS 		= arch/boot.o	\
+	generic/main.o				\
 	$(HYPERVISOR_SOURCE_DIR)/memory.o				\
 	$(HYPERVISOR_SOURCE_DIR)/timer.o				\
-	$(HYPERVISOR_SOURCE_DIR)/guest.o				\
-	$(HYPERVISOR_SOURCE_DIR)/vdev.o					\
-	$(HYPERVISOR_SOURCE_DIR)/monitor.o				\
+	api/guest.o				\
+	driver/vdev.o					\
+	api/monitor.o				\
 	$(HYPERVISOR_SOURCE_DIR)/interrupt.o			\
-	$(HYPERVISOR_HW_DIR)/guest_hw.o					\
+	api/guest_hw.o					\
 	$(HYPERVISOR_HW_DIR)/timer_hw.o					\
 	$(HYPERVISOR_HW_DIR)/interrupt_hw.o				\
 	$(HYPERVISOR_HW_DIR)/memory_hw.o				\
-	$(HYPERVISOR_HW_DIR)/vdev_cp.o				\
-	$(HYPERVISOR_HW_DIR)/vdev_gicd.o			\
-	$(HYPERVISOR_HW_DIR)/vdev_hvc_ping.o		\
-	$(HYPERVISOR_HW_DIR)/vdev_hvc_stay.o		\
-	$(HYPERVISOR_HW_DIR)/vdev_hvc_yield.o		\
-	$(HYPERVISOR_HW_DIR)/vdev_sample.o			\
-	$(HYPERVISOR_HW_DIR)/vdev_timer.o			\
-	$(HYPERVISOR_HW_DIR)/vdev_hvc_monitor.o		\
-	$(HYPERVISOR_HW_DIR)/vdev_monitor.o			\
-	$(HYPERVISOR_HW_DIR)/vdev_monitor_utils.o		\
-	$(HYPERVISOR_HW_HWLIB_DIR)/vector.o				\
-	$(HYPERVISOR_HW_HWLIB_DIR)/lpae.o				\
+	driver/vdev_cp.o				\
+	driver/vdev_gicd.o			\
+	driver/vdev_hvc_ping.o		\
+	driver/vdev_hvc_stay.o		\
+	driver/vdev_hvc_yield.o		\
+	driver/vdev_sample.o			\
+	driver/vdev_timer.o			\
+	driver/vdev_hvc_monitor.o		\
+	driver/vdev_monitor.o			\
+	driver/vdev_monitor_utils.o		\
+	arch/vector.o				\
+	arch/lpae.o				\
 	$(HYPERVISOR_HW_HWLIB_DIR)/gic.o				\
 	$(HYPERVISOR_HW_HWLIB_DIR)/vgic.o				\
 	$(HYPERVISOR_HW_HWLIB_DIR)/trap.o
@@ -56,13 +56,13 @@ OBJS 		+=	$(COMMON_SOURCE_DIR)/tests.o	\
 	$(COMMON_SOURCE_DIR)/tests_vdev.o			\
 	$(COMMON_SOURCE_DIR)/tests_malloc.o
 
-OBJS 		+=	$(COMMON_SOURCE_DIR)/string.o	\
-	$(COMMON_SOURCE_DIR)/format.o				\
-	$(COMMON_SOURCE_DIR)/print.o				\
+OBJS 		+=	lib/string.o	\
+	lib/format.o				\
+	lib/print.o				\
 
-LD_SCRIPT	= model.lds.S
+LD_SCRIPT	= generic/model.lds.S
 
-OBJS 		+= uart_print.o
+OBJS 		+= lib/uart_print.o
 
 INCLUDES    = -I $(HYPERVISOR_SOURCE_DIR)/include -I $(HYPERVISOR_SOURCE_DIR)
 INCLUDES    += -I $(HYPERVISOR_HW_DIR)/include
