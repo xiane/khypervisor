@@ -1,10 +1,13 @@
 #ifndef __VIRTUAL_MACHINE_H__
 #define __VIRTUAL_MACHINE_H__
 
-typedef enum virtual_machine_state {
+typedef unsigned char vmid_t;
+
+typedef enum __vm_state {
 	UNDEFINED,
 	DEFINED,
-} vm_state;
+	SCHEDULING,
+} vm_state_t;
 
 typedef struct virtual_machine {
 	unsigned char vmid; /* vmid is from 0 to 255 */
@@ -16,10 +19,10 @@ typedef struct virtual_machine {
 	vm_state state;
 } vm;
 
-unsigned char get_vmid();
-
-unsigned char create_vm();
-void delete_vm(unsigned char vmid);
-void start_vm(unsigned char vmid);
+vmid_t get_vmid();
+vm_state_t create_vm();
+vm_state_t delete_vm(vmid_t vmid);
+vm_state_t start_vm(vmid_t vmid);
+vm_state_t shutdown_vm(vmid_t vmid);
 
 #endif /* __VIRTUAL_MACHINE_H__ */
