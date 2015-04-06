@@ -7,6 +7,7 @@
 #include <hvmm_types.h>
 #include <vgic.h>
 #include <guest_hw.h>
+#include <vcpu.h>
 
 enum hyp_hvc_result {
     HYP_RESULT_ERET = 0,
@@ -26,6 +27,7 @@ enum hyp_hvc_result {
 struct guest_struct {
     struct arch_regs regs;
     struct arch_context context;
+    vcpu vcpu;
     vmid_t vmid;
 };
 
