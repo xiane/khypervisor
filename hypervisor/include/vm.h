@@ -20,7 +20,7 @@ typedef struct virtual_machine {
 } vm;
 
 vmid_t get_vmid();
-vm_state_t create_vm();
+vmid_t create_vm();
 vm_state_t delete_vm(vmid_t vmid);
 vm_state_t start_vm(vmid_t vmid);
 vm_state_t shutdown_vm(vmid_t vmid);
