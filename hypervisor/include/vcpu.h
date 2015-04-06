@@ -9,8 +9,27 @@ typedef struct __vcpu_arch {
 	__cp_regs cp_regs;
 } vcpu;
 
-void init_vcpu(vcpu *v);
-void save_vcpu(vcpu *v);
-void restore_vcpu(vcpu *v);
+typedef struct __vmem_arch {
+	unsigned int vttbr;
+	unsigned int start;
+	unsigned int offset;
+} vmem;
+
+typdef struct __virq_arch {
+	/* virq to pirq */
+	/* irq handler */
+} vgic;
+
+void init_vcpu(vcpu *vcpu);
+void save_vcpu(vcpu *vcpu);
+void restore_vcpu(vcpu *vcpu);
+
+void init_vmem(vmem *vmem);
+void save_vmem(vmem *vmem);
+void restore_vmem(vmem *vmem);
+
+void init_virq(virq *virq);
+void save_virq(virq *virq);
+void restore_virq(virq *virq);
 
 #endif /* __VCPU_H__ */
