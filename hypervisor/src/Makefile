@@ -76,7 +76,7 @@ GUEST1BIN	= ../../build/guest1.bin
 SEMIIMG 	= hvc-man-switch.axf
 MONITORMAP	= monitor.map
 
-CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES) -DGUEST0BIN=$(GUEST0BIN) -DGUEST1BIN=$(GUEST1BIN)
+CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES) -DGUEST0BINPATH=$(GUEST0BIN) -DGUEST1BINPATH=$(GUEST1BIN)
 #CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES)
 
 CC		= $(CROSS_COMPILE)gcc
@@ -96,13 +96,16 @@ export CROSS_COMPILE ARCH
 all: semi
 	cp $(SEMIIMG) ../../build
 # Build just the semihosting wrapper
-semi: $(SEMIIMG) $(MONITORMAP)
+semi: buildguest $(SEMIIMG) $(MONITORMAP)
+
+buildguest:
+	@../../scripts/buildguest.sh
 
 $(MONITORMAP): $(SEMIIMG)
 	$(NM) $< > $@
 
 clean distclean:
-	rm -f $(MONITORMAP) $(SEMIIMG) ../../build/$(SEMIIMG) $(HYPBIN) \
+	rm -f $(MONITORMAP) $(SEMIIMG) ../../build/$(SEMIIMG) $(HYPBIN) -rf ../../build \
 	model.lds modelsemi.lds $(OBJS)
 
 $(SEMIIMG): $(OBJS) modelsemi.lds

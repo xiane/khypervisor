@@ -54,7 +54,7 @@ $(GUESTLOADERIMG): $(OBJS) model.lds
 	$(LD) -o $@ $(OBJS) --script=model.lds
 $(GUESTLOADERBIN): $(GUESTLOADERIMG)
 	$(OBJCOPY) -O binary -S $< $@
-	mkdir ../../build
+	if [ ! -d "../../build" ]; then mkdir ../../build; fi
 	mv $(GUESTLOADERBIN) ../../build
 ifeq ($(LINUX), y)
 $(GUESTBIN):
