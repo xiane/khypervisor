@@ -174,7 +174,8 @@ vmid_t guest_next_vmid(vmid_t ofvmid)
         /* FIXME:Hardcoded */
         next = ofvmid + 1;
     }
-    return next;
+//    return next;
+    guest_last_vmid();
 }
 
 vmid_t guest_current_vmid(void)
@@ -227,7 +228,7 @@ void clean_manually_select_vmid(void){
 
 vmid_t sched_policy_determ_next(void)
 {
-#if 1
+#if 0
     if (manually_next_vmid)
         return selected_manually_next_vmid;
 
@@ -239,7 +240,7 @@ vmid_t sched_policy_determ_next(void)
 
     return next;
 #endif
-//    return guest_first_vmid();
+    return guest_first_vmid();
 }
 
 void guest_schedule(void *pdata)

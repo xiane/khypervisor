@@ -15,12 +15,10 @@
 # Main options
 #
 CROSS_COMPILE	?= arm-linux-gnueabihf-
-#CROSS_COMPILE	?= arm-none-eabi-
 ARCH		?= arm
 
 SYSTEM ?= vexpress
 
 CPPFLAGS	+= -DSMP
-#CPPFLAGS	+= -D_MON_
 CPPFLAGS	+= -mcpu=cortex-a15 -marm
-CPPFLAGS	+= -g
+CPPFLAGS	+= -DVEXPRESS -g
