@@ -25,6 +25,7 @@ BOOTLOADER	= boot.S
 
 OBJS 		= arch/boot.o	\
 	generic/main.o				\
+	generic/vm.o				\
 	$(HYPERVISOR_SOURCE_DIR)/memory.o				\
 	$(HYPERVISOR_SOURCE_DIR)/timer.o				\
 	api/guest.o				\

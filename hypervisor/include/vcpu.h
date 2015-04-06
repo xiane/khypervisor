@@ -19,17 +19,18 @@ typedef struct __vcpu_arch {
 } vcpu;
 
 
-typdef struct __virq_arch {
+typedef struct __virq_arch {
 	/* virq to pirq */
 	/* irq handler */
+	unsigned int irq_map;
 } vgic;
 
 void init_vcpu(vcpu *vcpu);
 void save_vcpu(vcpu *vcpu);
 void restore_vcpu(vcpu *vcpu);
 
-void init_virq(virq *virq);
-void save_virq(virq *virq);
-void restore_virq(virq *virq);
+void init_virq(vgic *virq);
+void save_virq(vgic *virq);
+void restore_virq(vgic *virq);
 
 #endif /* __VCPU_H__ */

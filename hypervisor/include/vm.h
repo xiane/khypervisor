@@ -1,6 +1,10 @@
 #ifndef __VIRTUAL_MACHINE_H__
 #define __VIRTUAL_MACHINE_H__
 
+#include <vcpu.h>
+#include <vmem.h>
+#include <virq.h>
+
 typedef unsigned char vmid_t;
 
 typedef enum __vm_state {
@@ -10,13 +14,13 @@ typedef enum __vm_state {
 } vm_state_t;
 
 typedef struct virtual_machine {
-	unsigned char vmid; /* vmid is from 0 to 255 */
+	vmid_t vmid; /* vmid is from 0 to 255 */
 
 	vcpu *vcpu;
 	vmem *vmem;
-	virq *virq;
+	vgic *virq;
 
-	vm_state state;
+	vm_state_t state;
 } vm;
 
 vmid_t get_vmid();
