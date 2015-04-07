@@ -7,6 +7,7 @@
 include config-default.mk
 LIB_DIR=../lib
 COMMON_LOADER_DIR=$(LIB_DIR)/loader
+BUILD_DIR = ../../build
 OBJS += boot.o main.o drivers/uart.o drivers/pl011.o drivers/timer.o\
 	$(LIB_DIR)/print.o \
 	$(LIB_DIR)/format.o \
@@ -33,9 +34,9 @@ OBJCOPY	= $(CROSS_COMPILE)objcopy
 GUESTLOADERCONFIGS = -DBM_GUEST
 ifeq ($(LINUX), y)
 GUESTLOADERCONFIGS = -DLINUX_GUEST
-GUESTBIN	= ../../build/zImage
+GUESTBIN	= $(BUILD_DIR)/zImage
 else
-GUESTBIN	= ../../build/bmguest.bin
+GUESTBIN	= $(BUILD_DIR)/bmguest.bin
 endif
 ifeq ($(MONITOR), y)
 GUESTLOADERCONFIGS += -DMONITOR_GUEST
@@ -48,14 +49,14 @@ endif
 GUESTLOADERCONFIGS += -DGUEST_NUMBER=$(GUEST_NUMBER)
 all: $(GUESTLOADERBIN)
 clean distclean:
-	rm -f $(GUESTLOADERIMG) $(GUESTLOADERBIN) $(GUESTBIN) \
+	rm -f $(GUESTLOADERIMG) $(GUESTLOADERBIN) $(BUILD_DIR)/$(GUESTLOADERBIN) \
 	model.lds $(OBJS)
 $(GUESTLOADERIMG): $(OBJS) model.lds
 	$(LD) -o $@ $(OBJS) --script=model.lds
 $(GUESTLOADERBIN): $(GUESTLOADERIMG)
 	$(OBJCOPY) -O binary -S $< $@
-	if [ ! -d "../../build" ]; then mkdir ../../build; fi
-	mv $(GUESTLOADERBIN) ../../build
+	if [ ! -d "$(BUILD_DIR)" ]; then mkdir $(BUILD_DIR); fi
+	mv $(GUESTLOADERBIN) $(BUILD_DIR)
 ifeq ($(LINUX), y)
 $(GUESTBIN):
 	@echo "ERROS: Copy $@ from guestos/linux/arch/arm/boot/ after building it"

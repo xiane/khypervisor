@@ -1,10 +1,16 @@
 #!/bin/sh
-cd ../../guest/bmguest
+
+GUEST_DIR="$PWD/../../guest"
+BM_DIR="$GUEST_DIR/bmguest"
+LOADER_DIR="$GUEST_DIR/guestloader"
+BUILD_DIR="$PWD/../../build"
+HYP_SRC_DIR="$PWD"
+
+cd $BM_DIR
 make
-cp bmguest.bin ../../build/
-cd ../guestloader
+cd $LOADER_DIR
 make
-cd ../../build
+cd $BUILD_DIR
 cp guestloader.bin guest0.bin
 mv guestloader.bin guest1.bin
-cd ../hypervisor/src
+cd $HYP_SRC_DIR

@@ -34,6 +34,7 @@ GUESTIMG 	= bmguest.axf
 GUESTBIN	= bmguest.bin
 LD_SCRIPT	= model.lds.S
 INCLUDES    = -I. -I$(LIB_DIR)
+BUILD_DIR		= ../../build
 
 CPPFLAGS    += $(INCLUDES)
 CC		= $(CROSS_COMPILE)gcc
@@ -81,11 +82,13 @@ all: $(GUESTBIN)
 	@echo "  - Building a Hyp Monitor guest: $$ GUESTTYPE=GUEST_HYPMON make clean all"
 	@echo "  - Building a Secure Monitor guest: $$ GUESTTYPE=GUEST_SECMON make clean all"
 	@echo "================================================================="
+	if [ ! -d "$(BUILD_DIR)" ]; then mkdir $(BUILD_DIR); fi
+	cp $(GUESTBIN) $(BUILD_DIR)
 
 # Build just the semihosting wrapper
 
 clean distclean:
-	rm -f $(GUESTIMG) $(GUESTBIN) \
+	rm -f $(GUESTIMG) $(GUESTBIN) $(BUILD_DIR)/$(GUESTBIN) \
 	model.lds $(OBJS) 
 
 $(GUESTIMG): $(OBJS) model.lds

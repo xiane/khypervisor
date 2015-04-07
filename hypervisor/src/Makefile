@@ -20,6 +20,8 @@ HYPERVISOR_SOURCE_DIR=./arch
 HYPERVISOR_HW_DIR=./arch
 HYPERVISOR_HW_HWLIB_DIR=./arch
 COMMON_SOURCE_DIR=./api
+BUILD_DIR = ../../build
+SCRIPT_DIR = ../../scripts
 
 BOOTLOADER	= boot.S
 
@@ -71,8 +73,8 @@ INCLUDES    += -I $(HYPERVISOR_HW_HWLIB_DIR)
 INCLUDES    += -I. -I $(COMMON_SOURCE_DIR) -I $(COMMON_SOURCE_DIR)/include
 INCLUDES    +=  -I ../include
 
-GUEST0BIN	= ../../build/guest0.bin
-GUEST1BIN	= ../../build/guest1.bin
+GUEST0BIN	= $(BUILD_DIR)/guest0.bin
+GUEST1BIN	= $(BUILD_DIR)/guest1.bin
 SEMIIMG 	= hvc-man-switch.axf
 MONITORMAP	= monitor.map
 
@@ -94,18 +96,18 @@ export CROSS_COMPILE ARCH
 
 # Build all wrappers
 all: semi
-	cp $(SEMIIMG) ../../build
+	cp $(SEMIIMG) $(BUILD_DIR)
 # Build just the semihosting wrapper
 semi: buildguest $(SEMIIMG) $(MONITORMAP)
 
 buildguest:
-	@../../scripts/buildguest.sh
+	@$(SCRIPT_DIR)/buildguest.sh
 
 $(MONITORMAP): $(SEMIIMG)
 	$(NM) $< > $@
 
 clean distclean:
-	rm -f $(MONITORMAP) $(SEMIIMG) ../../build/$(SEMIIMG) $(HYPBIN) -rf ../../build \
+	rm -f $(MONITORMAP) $(SEMIIMG) $(BUILD_DIR)/$(SEMIIMG) $(HYPBIN) -rf $(BUILD_DIR) \
 	model.lds modelsemi.lds $(OBJS)
 
 $(SEMIIMG): $(OBJS) modelsemi.lds
