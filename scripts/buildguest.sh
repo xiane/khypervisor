@@ -1,7 +1,7 @@
 #!/bin/sh
 cd ../../guest/bmguest
 make
-cp bmguest.bin ../guestloader/build
+cp bmguest.bin ../../build/
 cd ../guestloader
 make
 cd ../../build

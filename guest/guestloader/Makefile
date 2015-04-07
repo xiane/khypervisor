@@ -33,9 +33,9 @@ OBJCOPY	= $(CROSS_COMPILE)objcopy
 GUESTLOADERCONFIGS = -DBM_GUEST
 ifeq ($(LINUX), y)
 GUESTLOADERCONFIGS = -DLINUX_GUEST
-GUESTBIN	= build/zImage
+GUESTBIN	= ../../build/zImage
 else
-GUESTBIN	= build/bmguest.bin
+GUESTBIN	= ../../build/bmguest.bin
 endif
 ifeq ($(MONITOR), y)
 GUESTLOADERCONFIGS += -DMONITOR_GUEST
@@ -48,7 +48,7 @@ endif
 GUESTLOADERCONFIGS += -DGUEST_NUMBER=$(GUEST_NUMBER)
 all: $(GUESTLOADERBIN)
 clean distclean:
-	rm -f $(GUESTLOADERIMG) $(GUESTLOADERBIN) build/* \
+	rm -f $(GUESTLOADERIMG) $(GUESTLOADERBIN) $(GUESTBIN) \
 	model.lds $(OBJS)
 $(GUESTLOADERIMG): $(OBJS) model.lds
 	$(LD) -o $@ $(OBJS) --script=model.lds
