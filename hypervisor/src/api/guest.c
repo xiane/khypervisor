@@ -227,7 +227,6 @@ void clean_manually_select_vmid(void){
 
 vmid_t sched_policy_determ_next(void)
 {
-#if 1
     if (manually_next_vmid)
         return selected_manually_next_vmid;
 
@@ -238,8 +237,6 @@ vmid_t sched_policy_determ_next(void)
         next = guest_first_vmid();
 
     return next;
-#endif
-//    return guest_first_vmid();
 }
 
 void guest_schedule(void *pdata)

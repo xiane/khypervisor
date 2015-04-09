@@ -20,6 +20,8 @@ HYPERVISOR_SOURCE_DIR=./arch
 HYPERVISOR_HW_DIR=./arch
 HYPERVISOR_HW_HWLIB_DIR=./arch
 COMMON_SOURCE_DIR=./api
+BUILD_DIR = ../../build
+SCRIPT_DIR = ../../scripts
 
 BOOTLOADER	= boot.S
 
@@ -71,12 +73,13 @@ INCLUDES    += -I $(HYPERVISOR_HW_HWLIB_DIR)
 INCLUDES    += -I. -I $(COMMON_SOURCE_DIR) -I $(COMMON_SOURCE_DIR)/include
 INCLUDES    +=  -I ../include
 
-GUEST0BIN	= ./guestimages/guest0.bin
-GUEST1BIN	= ./guestimages/guest1.bin
+GUEST0BIN	= $(BUILD_DIR)/guest0.bin
+GUEST1BIN	= $(BUILD_DIR)/guest1.bin
 SEMIIMG 	= hvc-man-switch.axf
 MONITORMAP	= monitor.map
 
-CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES)
+CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES) -DGUEST0BINPATH=$(GUEST0BIN) -DGUEST1BINPATH=$(GUEST1BIN)
+#CPPFLAGS	+= $(CONFIG_FLAGS) $(INCLUDES)
 
 CC		= $(CROSS_COMPILE)gcc
 LD		= $(CROSS_COMPILE)ld
@@ -93,14 +96,18 @@ export CROSS_COMPILE ARCH
 
 # Build all wrappers
 all: semi
+	cp $(SEMIIMG) $(BUILD_DIR)
 # Build just the semihosting wrapper
-semi: $(SEMIIMG) $(MONITORMAP)
+semi: buildguest $(SEMIIMG) $(MONITORMAP)
+
+buildguest:
+	@$(SCRIPT_DIR)/buildguest.sh
 
 $(MONITORMAP): $(SEMIIMG)
 	$(NM) $< > $@
 
 clean distclean:
-	rm -f $(MONITORMAP) $(SEMIIMG) $(HYPBIN) \
+	rm -f $(MONITORMAP) $(SEMIIMG) $(BUILD_DIR)/$(SEMIIMG) $(HYPBIN) -rf $(BUILD_DIR) \
 	model.lds modelsemi.lds $(OBJS)
 
 $(SEMIIMG): $(OBJS) modelsemi.lds
@@ -139,7 +146,9 @@ model.lds: $(LD_SCRIPT) Makefile
 	$(CC) $(CPPFLAGS) -E -P -C -o $@ $<
 
 #modelsemi.lds: $(LD_SCRIPT) Makefile $(GUEST0BIN) $(GUEST1BIN)
-modelsemi.lds: $(LD_SCRIPT) Makefile
+#modelsemi.lds: $(LD_SCRIPT) Makefile
+#modelsemi.lds: $(LD_SCRIPT) Makefile $(GUEST0BIN)
+modelsemi.lds: $(LD_SCRIPT) Makefile $(GUEST0BIN) $(GUEST1BIN)
 	$(CC) $(CPPFLAGS) -DSEMIHOSTING=1 -E -P -C -o $@ $<
 
 # Pass any target we don't know about through to the kernel makefile.

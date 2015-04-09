@@ -14,6 +14,9 @@ ENTRY(start)
 
 #include <k-hypervisor-config.h>
 
+INPUT(GUEST0BINPATH)
+INPUT(GUEST1BINPATH)
+
 MON_STACK   = CFG_MEMMAP_MON_OFFSET + MON_SIZE;
 SEC_STACKTOP = MON_STACK + MON_STACK_SIZE;
 
@@ -23,8 +26,17 @@ SECTIONS
  . = CFG_MEMMAP_PHYS_START + 0x8000 - 0x40;
  . = CFG_MEMMAP_PHYS_START + 0x00d00000;
 
- fs_start = .;
- fs_end = .;
+/* Guest 0 */
+ . = CFG_MEMMAP_GUEST0_OFFSET;
+  _guest0_bin_start = .;
+  .guest0 : { GUEST0BINPATH}
+  _guest0_bin_end = .;
+
+/* Guest 1 */
+ . = CFG_MEMMAP_GUEST1_OFFSET;
+  _guest1_bin_start = .;
+ .guest1 : { GUEST1BINPATH}
+  _guest1_bin_end = .;
 
  . = CFG_MEMMAP_MON_OFFSET;
  /* Put most of the actual boot loader code up in high memory
