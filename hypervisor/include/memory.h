@@ -39,8 +39,11 @@ struct memmap_desc {
 };
 
 struct memory_ops {
-    /** Initalize Memory state */
-    hvmm_status_t (*init)(struct memmap_desc **, struct memmap_desc **);
+    /** Initialize Host Memory state */
+    hvmm_status_t (*host_init)(/*struct memmap_desc ***/);
+
+    /** Initialize Guest Memory state */
+    hvmm_status_t (*guest_init)(struct memmap_desc **, vmid_t);
 
     /** Allocate heap memory */
     void * (*alloc)(unsigned long size);
@@ -95,7 +98,7 @@ void memory_free(void *ap);
 void *memory_alloc(unsigned long size);
 hvmm_status_t memory_save(void);
 hvmm_status_t memory_restore(vmid_t vmid);
-hvmm_status_t memory_init(struct memmap_desc **guest0,
-                    struct memmap_desc **guest1);
+hvmm_status_t memory_host_init(/* struct memmap_desc **host */);
+hvmm_status_t memory_guest_init(struct memmap_desc **guest, vmid_t vmid);
 
 #endif

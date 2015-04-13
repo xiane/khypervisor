@@ -1196,26 +1196,16 @@ static void host_memory_init(void)
  *
  * @return void
  */
-static void guest_memory_init(struct memmap_desc **guest0_map,
-        struct memmap_desc **guest1_map)
+static void guest_memory_init(struct memmap_desc **guest_map, vmid_t vmid)
 {
     /*
      * Initializes Translation Table for Stage2 Translation (IPA -> PA)
      */
-    int i;
-    uint32_t cpu = smp_processor_id();
-
     HVMM_TRACE_ENTER();
 
-    if (!cpu) {
-        for (i = 0; i < NUM_GUESTS_STATIC; i++)
-            _vmid_ttbl[i] = &_ttbl_guest[i][0];
-        guest_memory_init_ttbl(&_ttbl_guest[0][0], guest0_map);
-        guest_memory_init_ttbl(&_ttbl_guest[1][0], guest1_map);
-    } else {
-        guest_memory_init_ttbl(&_ttbl_guest[2][0], guest0_map);
-        guest_memory_init_ttbl(&_ttbl_guest[3][0], guest1_map);
-    }
+    _vmid_ttbl[vmid] = &_ttbl_guest[vmid][0];
+
+    guest_memory_init_ttbl(&_ttbl_guest[vmid][0], guest_map);
 
     HVMM_TRACE_EXIT();
 }
@@ -1248,26 +1238,36 @@ static void guest_memory_init(struct memmap_desc **guest0_map,
  *
  * @return HVMM_STATUS_SUCCESS, Always success.
  */
-static int memory_hw_init(struct memmap_desc **guest0,
-            struct memmap_desc **guest1)
+static hvmm_status_t _memory_host_init(/* struct memmap_desc **host */)
 {
     uint32_t cpu = smp_processor_id();
-    uart_print("[memory] memory_init: enter\n\r");
-
-    guest_memory_init(guest0, guest1);
-
-    guest_memory_init_mmu();
+    uart_print("[memory] memory_host_init: enter\n\r");
 
     if (!cpu)
         host_memory_init();
 
+    /* have to do per cpu */
     memory_enable();
+
+    /* have to do per cpu */
+    guest_memory_init_mmu();
 
     uart_print("[memory] memory_init: exit\n\r");
     if (!cpu) {
         uart_print("[memory] host_memory_heap_init\n\r");
         host_memory_heap_init();
     }
+
+    return HVMM_STATUS_SUCCESS;
+}
+
+static hvmm_status_t _memory_guest_init(struct memmap_desc **guest, vmid_t vmid) 
+{
+    uart_print("[memory] memory_guest_init: enter\n\r");
+
+    guest_memory_init(guest, vmid);
+
+    uart_print("[memory] memory_guest_init: exit\n\r");
 
     return HVMM_STATUS_SUCCESS;
 }
@@ -1328,7 +1328,8 @@ static hvmm_status_t memory_hw_dump(void)
 }
 
 struct memory_ops _memory_ops = {
-    .init = memory_hw_init,
+    .host_init = _memory_host_init,
+    .guest_init = _memory_guest_init,
     .alloc = memory_hw_alloc,
     .free = memory_hw_free,
     .save = memory_hw_save,

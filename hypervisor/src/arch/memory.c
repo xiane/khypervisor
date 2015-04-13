@@ -64,18 +64,30 @@ hvmm_status_t memory_restore(vmid_t vmid)
     return ret;
 }
 
-hvmm_status_t memory_init(struct memmap_desc **guest0,
-                struct memmap_desc **guest1)
+hvmm_status_t memory_host_init(/* struct memmap_desc **host */)
 {
     hvmm_status_t ret = HVMM_STATUS_UNKNOWN_ERROR;
     _memory_ops = _memory_module.ops;
 
-    /* memory_hw_init */
-    if (_memory_ops->init) {
-        ret = _memory_ops->init(guest0, guest1);
+    /* _memory_host_init */
+    if (_memory_ops->host_init) {
+        ret = _memory_ops->host_init(/* host */);
         if (ret)
             printh("host initial failed:'%s'\n", _memory_module.name);
     }
 
     return ret;
+}
+
+hvmm_status_t memory_guest_init(struct memmap_desc **guest, vmid_t vmid)
+{
+    hvmm_status_t ret = HVMM_STATUS_UNKNOWN_ERROR;
+
+    /* _memory_guest_init */
+    if(_memory_ops->guest_init) {
+        ret = _memory_ops->guest_init(guest, vmid);
+        if (ret)
+            printh("guest initial failed:'%s'\n", _memory_module.name);
+   }
+   return ret;
 }

@@ -281,8 +281,13 @@ int main_cpu_init()
     /* Initialize Memory Management */
     setup_memory();
 
-    if (memory_init(guest0_mdlist, guest1_mdlist))
-        printh("[start_guest] virtual memory initialization failed...\n");
+    if (memory_host_init())
+        printh("[start_guest] host virtual memory initialization failed...\n");
+    if(memory_guest_init(guest0_mdlist, 0))
+        printh("[start_guest] guest 0 virtual memory initialization failed...\n");
+    if(memory_guest_init(guest1_mdlist, 1))
+        printh("[start_guest] guest 1 virtual memory initialization failed...\n");
+
     /* Initialize PIRQ to VIRQ mapping */
     setup_interrupt();
     /* Initialize Interrupt Management */
