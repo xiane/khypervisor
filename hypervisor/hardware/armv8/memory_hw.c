@@ -624,10 +624,12 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
     int l2_idx, l2_remain;
     union lpaed *ttbl3;
     HVMM_TRACE_ENTER();
-    if (gid)
-        printh(" - ttbl2:%x\n", (uint64_t) ttbl2);
-    if (((uint64_t)((uint64_t) ttbl2)) & 0x0FFFULL)
+
+    if (((uint64_t)((uint64_t) ttbl2)) & 0x0FFFULL) {
         printh(" - error: invalid ttbl2 address alignment\n");
+        hyp_abort_infinite();
+    }
+
     l2_idx = (md.va & L2_ENTRY_MASK) >> L2_SHIFT;
     printh("l2_idx:%d\n", l2_idx);
 
@@ -638,30 +640,28 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 
     while (md.size) {
         l2_remain = (md.va & ~L2_REMAIN_MASK) + SZ_2M - md.va;
+
         if ( md.size < l2_remain) {
+            // tail
             lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
                     (uint64_t) ((uint64_t) &ttbl3[l2_idx * 512]), LPAED_VALID);
-            guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512],
-                    md);
+            guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512], md);
 
             md.size -= md.size;
-        } else if (l2_remain == SZ_2M)
-        { // fit on L2 block, l2_remain >= size
-            lpaed_guest_stage2_map_page (
-                    &ttbl2[l2_idx], md.pa, md.attr);
-            ttbl2[l2_idx].pt.table = 0; // l2 block
-
-            // sync descriptor
-            md.va += l2_remain;
-            md.pa += l2_remain;
-            md.size -= l2_remain;
-        } else { // bigger then L2 block
-            struct memmap_desc temp_md = md;
-            temp_md.size = l2_remain;
-            lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
+        } else { // (md.size >= l2_remain)
+            if (l2_remain == SZ_2M) { // l2_remain fit on L2 block
+                // head or body
+                lpaed_guest_stage2_map_page (
+                        &ttbl2[l2_idx], md.pa, md.attr);
+                ttbl2[l2_idx].pt.table = 0; // l2 block
+            } else { // (md.size > l2_remain)
+                // head
+                struct memmap_desc temp_md = md;
+                temp_md.size = l2_remain;
+                lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
                     (uint64_t)((uint64_t) &ttbl3[l2_idx* 512]), LPAED_VALID);
-            guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512],
-                    temp_md);
+                guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512], temp_md);
+            }
 
             // sync descriptor
             md.va += l2_remain;
@@ -694,7 +694,7 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
         union lpaed *ttbl2;
 
         // fit to minimum size
-        if ( md.size < SZ_4K)
+        if (md.size < SZ_4K)
             md.size = SZ_4K;
         //set alignment
         md.va &= ~ENTRY_MASK;
@@ -706,39 +706,38 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
         l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
 
         printh("label:%s, l1_idx:%d\n",md.label, l1_idx);
-        if (md.va < CFG_MEMMAP_PHYS_START) // device area
-        {
+        if (md.va < CFG_MEMMAP_PHYS_START) { // device area
             ttbl2 = _ttbl2_guest_dev[gid];
 
             while (md.size) {
                 l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
                 printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
+
                 if (md.size < l1_remain ) {
+                    // tail
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]), 
-			    LPAED_VALID);
-                    guest_memory_init_ttbl2 (&ttbl2[l1_idx*512],
+                            (uint64_t) ((uint64_t) &ttbl2[l1_idx * 512]),
+                            LPAED_VALID);
+                    guest_memory_init_ttbl2 (&ttbl2[l1_idx * 512],
                             md, l1_idx, gid);
 
                     md.size -= md.size;
-                } else if ( l1_remain == SZ_1G)
-                {// fit on L1 block, l1_remain >= size
-                    lpaed_guest_stage2_map_page (
-                            &ttbl1[l1_idx], md.pa, md.attr);
-                    ttbl1[l1_idx].pt.table = 0; // l1 block
-
-                    // sync descriptor
-                    md.va += l1_remain;
-                    md.pa += l1_remain;
-                    md.size -= l1_remain;
-                } else { // bigger then L1 block
-                    struct memmap_desc temp_md = md;
-                    temp_md.size = l1_remain;
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]),
-			    LPAED_VALID);
-                    guest_memory_init_ttbl2 (&ttbl2[l1_idx*512],
-                            temp_md, l1_idx, gid);
+                } else { // (md.size >= l1_remain)
+                    if (l1_remain == SZ_1G) { // l1_remain fit on L1 block size
+                        // head or body
+                        lpaed_guest_stage2_map_page (
+                                &ttbl1[l1_idx], md.pa, md.attr);
+                        ttbl1[l1_idx].pt.table = 0; // L1 block
+                    } else { // md.size > L1 block
+                        // head
+                        struct memmap_desc temp_md = md;
+                        temp_md.size = l1_remain;
+                        lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
+                                (uint64_t) ((uint64_t) &ttbl2[l1_idx * 512]),
+                                LPAED_VALID);
+                        guest_memory_init_ttbl2 (&ttbl2[l1_idx * 512],
+                                temp_md, l1_idx, gid);
+                    }
 
                     // sync descriptor
                     md.va += l1_remain;
@@ -750,38 +749,40 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
         }
         else {// memory area
             ttbl2 = _ttbl2_guest_mem[gid];
+
             while (md.size) {
                 l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
                 printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
-                if (md.size <l1_remain ) {
+
+                if (md.size < l1_remain ) {
+                    // tail
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t)((uint64_t) 
-                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 
-			    LPAED_VALID);
+                            (uint64_t)((uint64_t)
+                        &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512]),
+                            LPAED_VALID);
                     guest_memory_init_ttbl2
-                        (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512],
+                        (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512],
                          md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
 
                     md.size -= md.size;
-                } else if ( l1_remain == SZ_1G) {// fit on L1 block
-                    lpaed_guest_stage2_map_page (
-                            &ttbl1[l1_idx], md.pa, md.attr);
-                    ttbl1[l1_idx].pt.table = 0; // l1 block
-
-                    // sync descriptor
-                    md.va += l1_remain;
-                    md.pa += l1_remain;
-                    md.size -= l1_remain;
-                } else { // bigger then L1 block
-                    struct memmap_desc temp_md = md;
-                    temp_md.size = l1_remain;
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t)
-                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 
-			    LPAED_VALID);
-                    guest_memory_init_ttbl2
-                        (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512],
-                         temp_md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
+                } else { // (md.size >= l1_remain)
+                    if (l1_remain == SZ_1G) { // l1_remain fit on L1 block
+                        // head or body
+                        lpaed_guest_stage2_map_page (
+                                &ttbl1[l1_idx], md.pa, md.attr);
+                        ttbl1[l1_idx].pt.table = 0; // L1 block
+                    } else { // (md.size > l1_remain)
+                        // head
+                        struct memmap_desc temp_md = md;
+                        temp_md.size = l1_remain;
+                        lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
+                          (uint64_t) ((uint64_t)
+                          &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512]),
+                            LPAED_VALID);
+                        guest_memory_init_ttbl2
+                          (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512],
+                          temp_md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
+                    }
 
                     // sync descriptor
                     md.va += l1_remain;
