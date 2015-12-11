@@ -595,14 +595,9 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
     l3_idx = (md.va & L3_ENTRY_MASK) >> L3_SHIFT;
     while(md.size)
     {
-        if(ttbl3[l3_idx].pt.valid) {
-            md.size -= SZ_4K;
-            md.pa += SZ_4K;
-            md.va += SZ_4K;
-            l3_idx++;
-            continue;
+        if (ttbl3[l3_idx].pt.valid == LPAED_INVALID) {
+            lpaed_guest_stage2_map_page ( &ttbl3[l3_idx], md.pa, md.attr);
         }
-        lpaed_guest_stage2_map_page ( &ttbl3[l3_idx], md.pa, md.attr);
         md.size -= SZ_4K;
         md.pa += SZ_4K;
         md.va += SZ_4K;
@@ -619,6 +614,8 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
  *
  * @param *ttbl2 Level 2 translation table descriptor.
  * @param *md Device memory map descriptor.
+ * @param l1_idx Index of level 1 translation table descriptor.
+ * @param gid Guest identifier
  * @return void
  */
 static void guest_memory_init_ttbl2(union lpaed *ttbl2,
@@ -627,8 +624,8 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
     int l2_idx, l2_remain;
     union lpaed *ttbl3;
     HVMM_TRACE_ENTER();
-    if(gid)
-    printh(" - ttbl2:%x\n", (uint64_t) ttbl2);
+    if (gid)
+        printh(" - ttbl2:%x\n", (uint64_t) ttbl2);
     if (((uint64_t)((uint64_t) ttbl2)) & 0x0FFFULL)
         printh(" - error: invalid ttbl2 address alignment\n");
     l2_idx = (md.va & L2_ENTRY_MASK) >> L2_SHIFT;
@@ -641,9 +638,9 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 
     while (md.size) {
         l2_remain = (md.va & ~L2_REMAIN_MASK) + SZ_2M - md.va;
-        if( md.size < l2_remain) {
+        if ( md.size < l2_remain) {
             lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
-                    (uint64_t) ((uint64_t) &ttbl3[l2_idx *512]), 1);
+                    (uint64_t) ((uint64_t) &ttbl3[l2_idx * 512]), LPAED_VALID);
             guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512],
                     md);
 
@@ -662,7 +659,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
             struct memmap_desc temp_md = md;
             temp_md.size = l2_remain;
             lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
-                    (uint64_t)((uint64_t) &ttbl3[l2_idx*512]), 1);
+                    (uint64_t)((uint64_t) &ttbl3[l2_idx* 512]), LPAED_VALID);
             guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512],
                     temp_md);
 
@@ -683,6 +680,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
  *
  * @param *ttbl1 Target level1 translation table descriptor.
  * @param *mdlist[] Memory map descriptor list.
+ * @param gid Guest identifier
  * @return void
  */
 static void guest_memory_init_ttbl1(union lpaed *ttbl1,
@@ -717,7 +715,8 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                 printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
                 if (md.size < l1_remain ) {
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]), 1);
+                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]), 
+			    LPAED_VALID);
                     guest_memory_init_ttbl2 (&ttbl2[l1_idx*512],
                             md, l1_idx, gid);
 
@@ -736,7 +735,8 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                     struct memmap_desc temp_md = md;
                     temp_md.size = l1_remain;
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]), 1);
+                            (uint64_t) ((uint64_t) &ttbl2[l1_idx*512]),
+			    LPAED_VALID);
                     guest_memory_init_ttbl2 (&ttbl2[l1_idx*512],
                             temp_md, l1_idx, gid);
 
@@ -756,7 +756,8 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                 if (md.size <l1_remain ) {
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
                             (uint64_t)((uint64_t) 
-                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 1);
+                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 
+			    LPAED_VALID);
                     guest_memory_init_ttbl2
                         (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512],
                          md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
@@ -776,7 +777,8 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                     temp_md.size = l1_remain;
                     lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
                             (uint64_t) ((uint64_t)
-                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 1);
+                    &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512]), 
+			    LPAED_VALID);
                     guest_memory_init_ttbl2
                         (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G))*512],
                          temp_md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);

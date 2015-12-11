@@ -192,8 +192,8 @@ union lpaed lpaed_host_l3_table(uint64_t pa,
 void lpaed_guest_stage2_conf_l0_table(union lpaed *ttbl0,
         uint64_t baddr, uint8_t valid)
 {
-    ttbl0->pt.valid = valid ? 1 : 0;
-    ttbl0->pt.table = valid ? 1 : 0;
+    ttbl0->pt.valid = valid ? LPAED_VALID : LPAED_INVALID;
+    ttbl0->pt.table = valid ? LPAED_VALID : LPAED_INVALID;
     ttbl0->bits &= ~TTBL_L0_TABADDR_MASK;
     ttbl0->bits |= baddr & TTBL_L0_TABADDR_MASK;
 }
@@ -201,8 +201,8 @@ void lpaed_guest_stage2_conf_l0_table(union lpaed *ttbl0,
 void lpaed_guest_stage2_conf_l1_table(union lpaed *ttbl1,
         uint64_t baddr, uint8_t valid)
 {
-    ttbl1->pt.valid = valid ? 1 : 0;
-    ttbl1->pt.table = valid ? 1 : 0;
+    ttbl1->pt.valid = valid ? LPAED_VALID : LPAED_INVALID;
+    ttbl1->pt.table = valid ? LPAED_VALID : LPAED_INVALID;
     ttbl1->bits &= ~TTBL_L1_TABADDR_MASK;
     ttbl1->bits |= baddr & TTBL_L1_TABADDR_MASK;
 }
@@ -210,27 +210,27 @@ void lpaed_guest_stage2_conf_l1_table(union lpaed *ttbl1,
 void lpaed_guest_stage2_conf_l2_table(union lpaed *ttbl2,
         uint64_t baddr, uint8_t valid)
 {
-    ttbl2->pt.valid = valid ? 1 : 0;
-    ttbl2->pt.table = valid ? 1 : 0;
+    ttbl2->pt.valid = valid ? LPAED_VALID : LPAED_INVALID;
+    ttbl2->pt.table = valid ? LPAED_VALID : LPAED_INVALID;
     ttbl2->bits &= ~TTBL_L2_TABADDR_MASK;
     ttbl2->bits |= baddr & TTBL_L2_TABADDR_MASK;
 }
 
 void lpaed_guest_stage2_enable_l2_table(union lpaed *ttbl2)
 {
-    ttbl2->pt.valid = 1;
-    ttbl2->pt.table = 1;
+    ttbl2->pt.valid = LPAED_VALID;
+    ttbl2->pt.table = LPAED_VALID;
 }
 void lpaed_guest_stage2_disable_l2_table(union lpaed *ttbl2)
 {
-    ttbl2->pt.valid = 0;
+    ttbl2->pt.valid = LPAED_INVALID;
 }
 
 void lpaed_guest_stage2_map_page(union lpaed *pte, uint64_t pa,
         enum memattr mattr)
 {
-    pte->pt.valid = 1;
-    pte->pt.table = 1;
+    pte->pt.valid = LPAED_VALID;
+    pte->pt.table = LPAED_VALID;
     pte->bits &= ~TTBL_L3_OUTADDR_MASK;
     pte->bits |= pa & TTBL_L3_OUTADDR_MASK;
     pte->p2m.sbz3 = 0;
@@ -251,12 +251,12 @@ void lpaed_guest_stage2_map_page(union lpaed *pte, uint64_t pa,
 void lpaed_guest_stage1_conf_l3_table(union lpaed *ttbl3,
         uint64_t baddr, uint8_t valid)
 {
-    ttbl3->pt.valid = valid ? 1 : 0;
+    ttbl3->pt.valid = valid ? LPAED_VALID : LPAED_INVALID;
     ttbl3->bits &= ~TTBL_L3_OUTADDR_MASK;
     ttbl3->bits |= baddr & TTBL_L3_OUTADDR_MASK;
 }
 
 void lpaed_guest_stage1_disable_l3_table(union lpaed *ttbl3)
 {
-    ttbl3->pt.valid = 0;
+    ttbl3->pt.valid = LPAED_INVALID;
 }

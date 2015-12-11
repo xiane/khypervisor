@@ -237,6 +237,15 @@
 /** @}*/
 
 /**
+ * @brief LPAED page table descriptor validattion
+ * The bit to verify validation of descriptor.
+ * @{
+ */
+#define LPAED_VALID	0X1
+#define LPAED_INVALID	0x0
+/** @}*/
+
+/**
  * @brief LPAE page table descriptor.
  *
  * The bits in this format are almost used in Stage-1 translation table.
