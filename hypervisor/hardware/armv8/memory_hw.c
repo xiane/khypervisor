@@ -633,7 +633,6 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
     }
 
     l2_idx = (md.va & L2_ENTRY_MASK) >> L2_SHIFT;
-    printh("l2_idx:%d\n", l2_idx);
 
     if (md.va < CFG_MEMMAP_PHYS_START) // device area
         ttbl3 = &_ttbl3_guest_dev[gid][l1_idx*512*512];
@@ -641,7 +640,8 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
         ttbl3 = &_ttbl3_guest_mem[gid][l1_idx*512*512];
 
     while (md.size) {
-        l2_remain = (md.va & ~L2_REMAIN_MASK) + SZ_2M - md.va;
+        // remained memory area size from va to current discriptor boundary
+        l2_remain = ((md.va & ~L2_REMAIN_MASK) + SZ_2M) - md.va;
 
         if ( md.size < l2_remain) {
             // tail
@@ -653,8 +653,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
         } else { // (md.size >= l2_remain)
             if (l2_remain == SZ_2M) { // l2_remain fit on L2 block
                 // head or body
-                lpaed_guest_stage2_map_page(
-                        &ttbl2[l2_idx], md.pa, md.attr);
+                lpaed_guest_stage2_map_page(&ttbl2[l2_idx], md.pa, md.attr);
                 ttbl2[l2_idx].pt.table = 0; // l2 block
             } else { // (md.size > l2_remain)
                 // head
@@ -712,8 +711,6 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
 
         l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
 
-        printh("label:%s, l1_idx:%d\n",md.label, l1_idx);
-
         if (md.va < CFG_MEMMAP_PHYS_START) { // device area
             ttbl2 = _ttbl2_guest_dev[gid];
             l1_idx_in_l2 = l1_idx;
@@ -723,8 +720,8 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
         }
 
         while (md.size) {
-            l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
-            printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
+            // remained memory area size from va to current discriptor boundary
+            l1_remain = ((md.va & ~L1_REMAIN_MASK) + SZ_1G) - md.va;
 
             if (md.size < l1_remain ) {
                 // tail
