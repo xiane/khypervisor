@@ -580,8 +580,8 @@ static void *host_memory_malloc(unsigned long size)
 /**
  * @brief Initialize delivered ttbl3 descriptors.
  *
- * Initialize ttbl3 descriptors and unmap the descriptors.
- * Finally, map the ttbl3 descriptors by memory map descriptors.
+ * Initialize ttbl3 descriptors and  map the ttbl3 descriptors
+ * by memory map descriptors.
  *
  * @param *ttbl3 Level 3 translation table descriptor.
  * @param *md Device memory map descriptor.
@@ -596,7 +596,7 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
     while(md.size)
     {
         if (ttbl3[l3_idx].pt.valid == LPAED_INVALID) {
-            lpaed_guest_stage2_map_page ( &ttbl3[l3_idx], md.pa, md.attr);
+            lpaed_guest_stage2_map_page(&ttbl3[l3_idx], md.pa, md.attr);
         }
         md.size -= SZ_4K;
         md.pa += SZ_4K;
@@ -609,8 +609,10 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
 /**
  * @brief Initialize delivered ttbl2 descriptors.
  *
- * Initialize ttbl2 descriptors and unmap the descriptors.
- * Finally, map the ttbl2 descriptors by memory map descriptors.
+ * Initialize ttbl2 descriptors and map the ttbl2 descriptors
+ * by memory map descriptors.
+ * Check size of remain area of memory map descriptor and
+ * set to block descriptor or level3 table descriptor.
  *
  * @param *ttbl2 Level 2 translation table descriptor.
  * @param *md Device memory map descriptor.
@@ -645,13 +647,13 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
             // tail
             lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
                     (uint64_t) ((uint64_t) &ttbl3[l2_idx * 512]), LPAED_VALID);
-            guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512], md);
+            guest_memory_init_ttbl3(&ttbl3[l2_idx * 512], md);
 
             md.size -= md.size;
         } else { // (md.size >= l2_remain)
             if (l2_remain == SZ_2M) { // l2_remain fit on L2 block
                 // head or body
-                lpaed_guest_stage2_map_page (
+                lpaed_guest_stage2_map_page(
                         &ttbl2[l2_idx], md.pa, md.attr);
                 ttbl2[l2_idx].pt.table = 0; // l2 block
             } else { // (md.size > l2_remain)
@@ -660,7 +662,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
                 temp_md.size = l2_remain;
                 lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
                     (uint64_t)((uint64_t) &ttbl3[l2_idx* 512]), LPAED_VALID);
-                guest_memory_init_ttbl3 (&ttbl3[l2_idx * 512], temp_md);
+                guest_memory_init_ttbl3(&ttbl3[l2_idx * 512], temp_md);
             }
 
             // sync descriptor
@@ -677,6 +679,8 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
  * @brief Configure stage-2 translation table descriptors of guest.
  *
  * Configures the level 1 translation table based on the memory descriptor.
+ * If remain area of memory descriptor size is equal to block size,
+ * set the area to block descriptor. or not, map it to ttbl2 descriptors.
  *
  * @param *ttbl1 Target level1 translation table descriptor.
  * @param *mdlist[] Memory map descriptor list.
@@ -686,12 +690,15 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 static void guest_memory_init_ttbl1(union lpaed *ttbl1,
             struct memmap_desc *mdlist, int gid)
 {
+    struct memmap_desc md;
+    uint32_t l1_idx, l1_remain;
+    uint32_t l1_idx_in_l2;
+    union lpaed *ttbl2;
     int i = 0;
+
     HVMM_TRACE_ENTER();
     while (mdlist[i].label) {
-        struct memmap_desc md = mdlist[i];
-        uint32_t l1_idx, l1_remain;
-        union lpaed *ttbl2;
+        md = mdlist[i];
 
         // fit to minimum size
         if (md.size < SZ_4K)
@@ -706,92 +713,54 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
         l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
 
         printh("label:%s, l1_idx:%d\n",md.label, l1_idx);
+
         if (md.va < CFG_MEMMAP_PHYS_START) { // device area
             ttbl2 = _ttbl2_guest_dev[gid];
-
-            while (md.size) {
-                l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
-                printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
-
-                if (md.size < l1_remain ) {
-                    // tail
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx * 512]),
-                            LPAED_VALID);
-                    guest_memory_init_ttbl2 (&ttbl2[l1_idx * 512],
-                            md, l1_idx, gid);
-
-                    md.size -= md.size;
-                } else { // (md.size >= l1_remain)
-                    if (l1_remain == SZ_1G) { // l1_remain fit on L1 block size
-                        // head or body
-                        lpaed_guest_stage2_map_page (
-                                &ttbl1[l1_idx], md.pa, md.attr);
-                        ttbl1[l1_idx].pt.table = 0; // L1 block
-                    } else { // md.size > L1 block
-                        // head
-                        struct memmap_desc temp_md = md;
-                        temp_md.size = l1_remain;
-                        lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                                (uint64_t) ((uint64_t) &ttbl2[l1_idx * 512]),
-                                LPAED_VALID);
-                        guest_memory_init_ttbl2 (&ttbl2[l1_idx * 512],
-                                temp_md, l1_idx, gid);
-                    }
-
-                    // sync descriptor
-                    md.va += l1_remain;
-                    md.pa += l1_remain;
-                    md.size -= l1_remain;
-                }
-                l1_idx++;
-            }
-        }
-        else {// memory area
+            l1_idx_in_l2 = l1_idx;
+        } else { // memory area
             ttbl2 = _ttbl2_guest_mem[gid];
-
-            while (md.size) {
-                l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
-                printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
-
-                if (md.size < l1_remain ) {
-                    // tail
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t)((uint64_t)
-                        &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512]),
-                            LPAED_VALID);
-                    guest_memory_init_ttbl2
-                        (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512],
-                         md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
-
-                    md.size -= md.size;
-                } else { // (md.size >= l1_remain)
-                    if (l1_remain == SZ_1G) { // l1_remain fit on L1 block
-                        // head or body
-                        lpaed_guest_stage2_map_page (
-                                &ttbl1[l1_idx], md.pa, md.attr);
-                        ttbl1[l1_idx].pt.table = 0; // L1 block
-                    } else { // (md.size > l1_remain)
-                        // head
-                        struct memmap_desc temp_md = md;
-                        temp_md.size = l1_remain;
-                        lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                          (uint64_t) ((uint64_t)
-                          &ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512]),
-                            LPAED_VALID);
-                        guest_memory_init_ttbl2
-                          (&ttbl2[(l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)) * 512],
-                          temp_md, (l1_idx-(CFG_MEMMAP_PHYS_START/SZ_1G)), gid);
-                    }
-
-                    // sync descriptor
-                    md.va += l1_remain;
-                    md.pa += l1_remain;
-                    md.size -= l1_remain;
-                }
-                l1_idx++;
-            }
+            l1_idx_in_l2 = l1_idx - (CFG_MEMMAP_PHYS_START/SZ_1G);
         }
+
+        while (md.size) {
+            l1_remain = (md.va & ~L1_REMAIN_MASK) + SZ_1G - md.va;
+            printh("l1_remain : %x, size: %x\n", l1_remain, md.size);
+
+            if (md.size < l1_remain ) {
+                // tail
+                lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
+                        (uint64_t) ((uint64_t) &ttbl2[l1_idx_in_l2 * 512]),
+                        LPAED_VALID);
+                guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * 512],
+                        md, l1_idx_in_l2, gid);
+
+                md.size -= md.size;
+            } else { // (md.size >= l1_remain)
+                if (l1_remain == SZ_1G) { // l1_remain fit on L1 block size
+                    // head or body
+                    lpaed_guest_stage2_map_page(
+                            &ttbl1[l1_idx], md.pa, md.attr);
+                    ttbl1[l1_idx].pt.table = 0; // L1 block
+                } else { // md.size > L1 block
+                    // head
+                    struct memmap_desc temp_md = md;
+                    temp_md.size = l1_remain;
+                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
+                            (uint64_t) ((uint64_t) &ttbl2[l1_idx_in_l2 * 512]),
+                            LPAED_VALID);
+                    guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * 512],
+                            temp_md, l1_idx_in_l2, gid);
+                }
+
+                // sync descriptor
+                md.va += l1_remain;
+                md.pa += l1_remain;
+                md.size -= l1_remain;
+            }
+            l1_idx++;
+            l1_idx_in_l2++;
+        }
+
         i++;
     }
     HVMM_TRACE_EXIT();
