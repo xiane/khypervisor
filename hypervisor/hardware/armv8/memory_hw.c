@@ -610,6 +610,24 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
 }
 
 /**
+ * @brief Get ttbl3
+ * Get level 3 translation table pointer.
+ *
+ * @param gid Guest identifier.
+ * @param *md Memory map descriptor.
+ * @param idx level 1 descriptor index.
+ * @return struct lpaed * level 3 translation table pointer.
+ */
+static struct lpaed *guest_memory_get_ttbl3(int gid, struct memmap_desc *md,
+        int l1_idx)
+{
+    if ((md->va) < CFG_MEMMAP_PHYS_START) // device area
+        return &_ttbl3_guest_dev[gid][l1_idx * MAX_ENTRY * MAX_ENTRY];
+    else // memory area
+        return &_ttbl3_guest_mem[gid][l1_idx * MAX_ENTRY * MAX_ENTRY];
+}
+
+/**
  * @brief Set level 2 descriptor to level 3 translation table.
  *
  * Initialize level 2 descriptor to table descriptor and
@@ -639,9 +657,9 @@ static void guest_memory_map_l2_desc_to_ttbl3(union lpaed *desc,
  * set to block descriptor or level3 table descriptor.
  *
  * @param *ttbl2 Level 2 translation table.
- * @param md Device memory map descriptor.
+ * @param *md Device memory map descriptor.
  * @param l1_idx Index of level 1 translation table descriptor.
- * @param gid Guest identifier
+ * @param gid Guest identifier.
  * @return void
  */
 static void guest_memory_init_ttbl2(union lpaed *ttbl2,
@@ -654,10 +672,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 
     l2_idx = ((md->va) & L2_ENTRY_MASK) >> L2_SHIFT;
 
-    if ((md->va) < CFG_MEMMAP_PHYS_START) // device area
-        ttbl3 = &_ttbl3_guest_dev[gid][l1_idx * MAX_ENTRY * MAX_ENTRY];
-    else // memory area
-        ttbl3 = &_ttbl3_guest_mem[gid][l1_idx * MAX_ENTRY * MAX_ENTRY];
+    ttbl3 = guest_memory_get_ttbl3(gid, md, l1_idx);
 
     while (md->size) {
         // remained memory area size from va to current discriptor boundary
@@ -682,7 +697,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
                         &ttbl3[l2_idx * MAX_ENTRY], &head_md);
             }
 
-            // sync descriptor
+            // sync progress
             md->va += l2_remain;
             md->pa += l2_remain;
             md->size -= l2_remain;
@@ -690,6 +705,22 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
         l2_idx++;
     }
     HVMM_TRACE_EXIT();
+}
+
+/**
+ * @brief Get ttbl2
+ * Get level 2 translation table pointer.
+ *
+ * @param gid guest identifier.
+ * @param *md Memory map descriptor.
+ * @return struct lpaed * level 2 translation table pointer.
+ */
+static struct lpaed *guest_memory_get_ttbl2(int gid, struct memmap_desc *md)
+{
+    if ((md->va) < CFG_MEMMAP_PHYS_START) // device area
+        return _ttbl2_guest_dev[gid];
+    else // memory area
+        return _ttbl2_guest_mem[gid];
 }
 
 /**
@@ -730,7 +761,7 @@ static void guest_memory_map_l1_desc_to_ttbl2(union lpaed *desc,
  * set the area to block descriptor. or not, map it to ttbl2 descriptors.
  *
  * @param *ttbl1 Target level1 translation table.
- * @param md Memory map descriptor.
+ * @param *md Memory map descriptor.
  * @param gid Guest identifier
  * @return void
  */
@@ -744,10 +775,7 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
 
     l1_idx = ((md->va) & L1_ENTRY_MASK) >> L1_SHIFT;
 
-    if ((md->va) < CFG_MEMMAP_PHYS_START) // device area
-        ttbl2 = _ttbl2_guest_dev[gid];
-    else // memory area
-        ttbl2 = _ttbl2_guest_mem[gid];
+    ttbl2 = guest_memory_get_ttbl2(gid, md);
 
     while (md->size) {
         // remained memory area size from va to current discriptor boundary
@@ -772,7 +800,7 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                         &head_md, l1_idx, gid);
             }
 
-            // sync descriptor
+            // sync progress
             md->va += l1_remain;
             md->pa += l1_remain;
             md->size -= l1_remain;
@@ -789,7 +817,7 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
  * It have to be fixed to control larger address space level0 ttbl.
  *
  * @param *ttbl0 Target level 0 translation table descriptor.
- * @param md Memory map descriptor.
+ * @param *md Memory map descriptor.
  * @param gid Guest identifier
  * @return void
  */
@@ -1231,7 +1259,7 @@ static void guest_memory_init(struct memmap_desc *guest_map, int gid)
 
     check_and_config_memory_map_descriptor(&guest_map);
 
-    while (guest_map[i].label ) {
+    while (guest_map[i].label) {
         md = guest_map[i];
 
         switch (sl0)
