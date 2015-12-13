@@ -147,16 +147,19 @@
 #define TCR_EL2_T0SZ_SHIFT              0
 /** @} */
 
+/* Maximum number of entries at 4KB granule */
+#define MAX_ENTRY   512
+
 /* EL2 Stage 1 Level 0 */
-#define HMM_L0_PTE_NUM  512
+#define HMM_L0_PTE_NUM  MAX_ENTRY
 /* EL2 Stage 1 Level 1 */
-#define HMM_L1_PTE_NUM  512
+#define HMM_L1_PTE_NUM  MAX_ENTRY
 
 /* EL2 Stage 1 Level 2 */
-#define HMM_L2_PTE_NUM  512
+#define HMM_L2_PTE_NUM  MAX_ENTRY
 
 /* EL2 Stage 1 Level 3 */
-#define HMM_L3_PTE_NUM  512
+#define HMM_L3_PTE_NUM  MAX_ENTRY
 
 #define HEAP_ADDR (CFG_MEMMAP_MON_OFFSET + 0x02000000)
 #define HEAP_SIZE 0x0D000000
@@ -179,12 +182,13 @@
 #define NALLOC 1024
 
 /* Stage 2 Level 0 */
-#define VMM_L0_PTE_NUM          512 
+#define VMM_L0_PTE_NUM          MAX_ENTRY 
 /* Stage 2 Level 1 */
-#define VMM_L1_PTE_NUM          512
+#define VMM_L1_PTE_NUM          MAX_ENTRY
 /* Stage 2 Level 2 */
-#define VMM_L2_PTE_NUM          512
-#define VMM_L3_PTE_NUM          512
+#define VMM_L2_PTE_NUM          MAX_ENTRY
+/* Stage 2 Level 3 */
+#define VMM_L3_PTE_NUM          MAX_ENTRY
 
 /**
  * \defgroup VTTBR
@@ -635,9 +639,9 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
     l2_idx = (md.va & L2_ENTRY_MASK) >> L2_SHIFT;
 
     if (md.va < CFG_MEMMAP_PHYS_START) // device area
-        ttbl3 = &_ttbl3_guest_dev[gid][l1_idx*512*512];
+        ttbl3 = &_ttbl3_guest_dev[gid][l1_idx*MAX_ENTRY * MAX_ENTRY];
     else // memory area
-        ttbl3 = &_ttbl3_guest_mem[gid][l1_idx*512*512];
+        ttbl3 = &_ttbl3_guest_mem[gid][l1_idx*MAX_ENTRY * MAX_ENTRY];
 
     while (md.size) {
         // remained memory area size from va to current discriptor boundary
@@ -645,9 +649,9 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 
         if ( md.size < l2_remain) {
             // tail
-            lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
-                    (uint64_t) ((uint64_t) &ttbl3[l2_idx * 512]), LPAED_VALID);
-            guest_memory_init_ttbl3(&ttbl3[l2_idx * 512], md);
+            lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx], (uint64_t)
+                    ((uint64_t) &ttbl3[l2_idx * MAX_ENTRY]), LPAED_VALID);
+            guest_memory_init_ttbl3(&ttbl3[l2_idx * MAX_ENTRY], md);
 
             md.size -= md.size;
         } else { // (md.size >= l2_remain)
@@ -659,9 +663,9 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
                 // head
                 struct memmap_desc temp_md = md;
                 temp_md.size = l2_remain;
-                lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx],
-                    (uint64_t)((uint64_t) &ttbl3[l2_idx* 512]), LPAED_VALID);
-                guest_memory_init_ttbl3(&ttbl3[l2_idx * 512], temp_md);
+                lpaed_guest_stage2_conf_l2_table(&ttbl2[l2_idx], (uint64_t)
+                        ((uint64_t) &ttbl3[l2_idx * MAX_ENTRY]), LPAED_VALID);
+                guest_memory_init_ttbl3(&ttbl3[l2_idx * MAX_ENTRY], temp_md);
             }
 
             // sync descriptor
@@ -725,10 +729,10 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
 
             if (md.size < l1_remain ) {
                 // tail
-                lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                        (uint64_t) ((uint64_t) &ttbl2[l1_idx_in_l2 * 512]),
+                lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx], (uint64_t)
+                        ((uint64_t) &ttbl2[l1_idx_in_l2 * MAX_ENTRY]),
                         LPAED_VALID);
-                guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * 512],
+                guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * MAX_ENTRY],
                         md, l1_idx_in_l2, gid);
 
                 md.size -= md.size;
@@ -742,10 +746,10 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
                     // head
                     struct memmap_desc temp_md = md;
                     temp_md.size = l1_remain;
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx],
-                            (uint64_t) ((uint64_t) &ttbl2[l1_idx_in_l2 * 512]),
+                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx], (uint64_t)
+                            ((uint64_t) &ttbl2[l1_idx_in_l2 * MAX_ENTRY]),
                             LPAED_VALID);
-                    guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * 512],
+                    guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * MAX_ENTRY],
                             temp_md, l1_idx_in_l2, gid);
                 }
 
@@ -1349,4 +1353,3 @@ struct memory_module _memory_module = {
     .author = "Kookmin Univ.",
     .ops = &_memory_ops,
 };
-
