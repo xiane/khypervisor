@@ -703,16 +703,6 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
     while (mdlist[i].label) {
         md = mdlist[i];
 
-        // fit to minimum size
-        if (md.size < SZ_4K)
-            md.size = SZ_4K;
-        //set alignment
-        md.va &= ~ENTRY_MASK;
-        md.pa &= ~ENTRY_MASK;
-
-        if (mdlist[i].label == 0) // end of md list
-            break;
-
         l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
 
         if (md.va < CFG_MEMMAP_PHYS_START) { // device area
@@ -1149,6 +1139,32 @@ static void host_memory_init(void)
     }
 }
 
+/**
+ * @brief Check the memory map descriptor and configure it.
+ *
+ * Check the memory map descriptor to fit rule.
+ * if not, configure it to fit it.
+ *
+ * @param *mdlist[] Memory map descriptor list.
+ * @return void
+ */
+static void check_and_config_memory_map_descriptor(struct memap_dec *mdlist)
+{
+    int i = 0;
+
+    while (mdlist[i].label) {
+        // Fit to minimum size
+        if (mdlist[i].size < SZ_4K)
+            mdlist[i].size = SZ_4K;
+
+        // Set alignment
+        mdlist[i].va &= ~ENTRY_MASK;
+        mdlist[i].pa &= ~ENTRY_MASK;
+
+        i++;
+    }
+}
+
 /*
  * @brief Initializes the virtual mode(guest mode) memory management
  * stage-2 translation.
@@ -1170,6 +1186,8 @@ static void guest_memory_init(struct memmap_desc *guest_map, int gid)
     uint32_t sl0 = vtcr_info[id_aa64mmfr0_el1 & ID_AA64MMFR0_PARange].sl0;
 
     HVMM_TRACE_ENTER();
+
+    check_and_config_memory_map_descriptor(&guest_map);
 
     switch (sl0)
     {
