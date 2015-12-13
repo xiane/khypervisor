@@ -619,7 +619,7 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
  * set to block descriptor or level3 table descriptor.
  *
  * @param *ttbl2 Level 2 translation table descriptor.
- * @param *md Device memory map descriptor.
+ * @param md Device memory map descriptor.
  * @param l1_idx Index of level 1 translation table descriptor.
  * @param gid Guest identifier
  * @return void
@@ -627,14 +627,10 @@ static void guest_memory_init_ttbl3(union lpaed *ttbl3,
 static void guest_memory_init_ttbl2(union lpaed *ttbl2,
         struct memmap_desc md, int l1_idx,int gid)
 {
-    int l2_idx, l2_remain;
+    uint32_t l2_idx, l2_remain;
     union lpaed *ttbl3;
-    HVMM_TRACE_ENTER();
 
-    if (((uint64_t)((uint64_t) ttbl2)) & 0x0FFFULL) {
-        printh(" - error: invalid ttbl2 address alignment\n");
-        hyp_abort_infinite();
-    }
+    HVMM_TRACE_ENTER();
 
     l2_idx = (md.va & L2_ENTRY_MASK) >> L2_SHIFT;
 
@@ -686,73 +682,66 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
  * set the area to block descriptor. or not, map it to ttbl2 descriptors.
  *
  * @param *ttbl1 Target level1 translation table descriptor.
- * @param *mdlist[] Memory map descriptor list.
+ * @param md Memory map descriptor.
  * @param gid Guest identifier
  * @return void
  */
 static void guest_memory_init_ttbl1(union lpaed *ttbl1,
-            struct memmap_desc *mdlist, int gid)
+            struct memmap_desc md, int gid)
 {
-    struct memmap_desc md;
     uint32_t l1_idx, l1_remain;
     uint32_t l1_idx_in_l2;
     union lpaed *ttbl2;
-    int i = 0;
 
     HVMM_TRACE_ENTER();
-    while (mdlist[i].label) {
-        md = mdlist[i];
 
-        l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
+    l1_idx = (md.va & L1_ENTRY_MASK) >> L1_SHIFT;
 
-        if (md.va < CFG_MEMMAP_PHYS_START) { // device area
-            ttbl2 = _ttbl2_guest_dev[gid];
-            l1_idx_in_l2 = l1_idx;
-        } else { // memory area
-            ttbl2 = _ttbl2_guest_mem[gid];
-            l1_idx_in_l2 = l1_idx - (CFG_MEMMAP_PHYS_START/SZ_1G);
-        }
+    if (md.va < CFG_MEMMAP_PHYS_START) { // device area
+        ttbl2 = _ttbl2_guest_dev[gid];
+        l1_idx_in_l2 = l1_idx;
+    } else { // memory area
+        ttbl2 = _ttbl2_guest_mem[gid];
+        l1_idx_in_l2 = l1_idx - (CFG_MEMMAP_PHYS_START/SZ_1G);
+    }
 
-        while (md.size) {
-            // remained memory area size from va to current discriptor boundary
-            l1_remain = ((md.va & ~L1_REMAIN_MASK) + SZ_1G) - md.va;
+    while (md.size) {
+        // remained memory area size from va to current discriptor boundary
+        l1_remain = ((md.va & ~L1_REMAIN_MASK) + SZ_1G) - md.va;
 
-            if (md.size < l1_remain ) {
-                // tail
+        if (md.size < l1_remain ) {
+            // tail
+            lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx], (uint64_t)
+                    ((uint64_t) &ttbl2[l1_idx_in_l2 * MAX_ENTRY]),
+                    LPAED_VALID);
+            guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * MAX_ENTRY],
+                    md, l1_idx_in_l2, gid);
+
+            md.size -= md.size;
+        } else { // (md.size >= l1_remain)
+            if (l1_remain == SZ_1G) { // l1_remain fit on L1 block size
+                // head or body
+                lpaed_guest_stage2_map_page(
+                        &ttbl1[l1_idx], md.pa, md.attr);
+                ttbl1[l1_idx].pt.table = 0; // L1 block
+            } else { // md.size > L1 block
+                // head
+                struct memmap_desc temp_md = md;
+                temp_md.size = l1_remain;
                 lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx], (uint64_t)
                         ((uint64_t) &ttbl2[l1_idx_in_l2 * MAX_ENTRY]),
                         LPAED_VALID);
                 guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * MAX_ENTRY],
-                        md, l1_idx_in_l2, gid);
-
-                md.size -= md.size;
-            } else { // (md.size >= l1_remain)
-                if (l1_remain == SZ_1G) { // l1_remain fit on L1 block size
-                    // head or body
-                    lpaed_guest_stage2_map_page(
-                            &ttbl1[l1_idx], md.pa, md.attr);
-                    ttbl1[l1_idx].pt.table = 0; // L1 block
-                } else { // md.size > L1 block
-                    // head
-                    struct memmap_desc temp_md = md;
-                    temp_md.size = l1_remain;
-                    lpaed_guest_stage2_conf_l1_table(&ttbl1[l1_idx], (uint64_t)
-                            ((uint64_t) &ttbl2[l1_idx_in_l2 * MAX_ENTRY]),
-                            LPAED_VALID);
-                    guest_memory_init_ttbl2(&ttbl2[l1_idx_in_l2 * MAX_ENTRY],
-                            temp_md, l1_idx_in_l2, gid);
-                }
-
-                // sync descriptor
-                md.va += l1_remain;
-                md.pa += l1_remain;
-                md.size -= l1_remain;
+                        temp_md, l1_idx_in_l2, gid);
             }
-            l1_idx++;
-            l1_idx_in_l2++;
-        }
 
-        i++;
+            // sync descriptor
+            md.va += l1_remain;
+            md.pa += l1_remain;
+            md.size -= l1_remain;
+        }
+        l1_idx++;
+        l1_idx_in_l2++;
     }
     HVMM_TRACE_EXIT();
 }
@@ -760,21 +749,21 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
 /**
  * @brief Configure stage-2 translation table descriptors of guest.
  *
- * Configures the translation table based on the memory descriptor list.
+ * Configures the translation table based on the memory descriptor.
  * It have to be fixed to control larger address space level0 ttbl.
  *
  * @param *ttbl0 Target level 0 translation table descriptor.
- * @param *mdlist[] Memory map descriptor list.
+ * @param md Memory map descriptor.
  * @param gid Guest identifier
  * @return void
  */
 
 static void guest_memory_init_ttbl(union lpaed *ttbl0,
-        struct memmap_desc mdlist[], int gid)
+        struct memmap_desc md, int gid)
 {
     lpaed_guest_stage2_conf_l0_table(ttbl0,
             (uint64_t)(uint64_t)_ttbl1_guest[gid], 1);
-    guest_memory_init_ttbl1(_ttbl1_guest[gid], mdlist, gid);
+    guest_memory_init_ttbl1(_ttbl1_guest[gid], md, gid);
 }
 
 /**
@@ -1145,21 +1134,21 @@ static void host_memory_init(void)
  * Check the memory map descriptor to fit rule.
  * if not, configure it to fit it.
  *
- * @param *mdlist[] Memory map descriptor list.
+ * @param *md_map[] Memory map descriptor map.
  * @return void
  */
-static void check_and_config_memory_map_descriptor(struct memap_dec *mdlist)
+static void check_and_config_memory_map_descriptor(struct memap_dec *md_map)
 {
     int i = 0;
 
-    while (mdlist[i].label) {
+    while (md_map[i].label) {
         // Fit to minimum size
-        if (mdlist[i].size < SZ_4K)
-            mdlist[i].size = SZ_4K;
+        if (md_map[i].size < SZ_4K)
+            md_map[i].size = SZ_4K;
 
         // Set alignment
-        mdlist[i].va &= ~ENTRY_MASK;
-        mdlist[i].pa &= ~ENTRY_MASK;
+        md_map[i].va &= ~ENTRY_MASK;
+        md_map[i].pa &= ~ENTRY_MASK;
 
         i++;
     }
@@ -1184,26 +1173,34 @@ static void guest_memory_init(struct memmap_desc *guest_map, int gid)
      * Initializes Translation Table for Stage2 Translation (IPA -> PA)
      */
     uint32_t sl0 = vtcr_info[id_aa64mmfr0_el1 & ID_AA64MMFR0_PARange].sl0;
+    int i =0;
+    struct memmap_desc md;
 
     HVMM_TRACE_ENTER();
 
     check_and_config_memory_map_descriptor(&guest_map);
 
-    switch (sl0)
-    {
-        case 0 : // start level 2, unimplemented
-            printH("Unimplemented\n");
-            break;
-        case 1: // start level 1
-            _vmid_ttbl[gid] = _ttbl1_guest[gid];
-            guest_memory_init_ttbl1(_ttbl1_guest[gid], guest_map, gid);
-            break;
-        case 2: // start level 0
-            _vmid_ttbl[gid] = _ttbl0_guest[gid];
-            guest_memory_init_ttbl(_ttbl0_guest[gid], guest_map, gid);
-            break;
-        default:
-            printh("Invalid start level\n");
+    while (guest_map[i].label ) {
+        md = guest_map[i];
+
+        switch (sl0)
+        {
+            case 0 : // start level 2, unimplemented
+                printH("Unimplemented\n");
+                break;
+            case 1: // start level 1
+                _vmid_ttbl[gid] = _ttbl1_guest[gid];
+                guest_memory_init_ttbl1(_ttbl1_guest[gid], md, gid);
+                break;
+            case 2: // start level 0
+                _vmid_ttbl[gid] = _ttbl0_guest[gid];
+                guest_memory_init_ttbl(_ttbl0_guest[gid], md, gid);
+                break;
+            default:
+                printh("Invalid start level\n");
+        }
+
+        i++;
     }
     HVMM_TRACE_EXIT();
 }
