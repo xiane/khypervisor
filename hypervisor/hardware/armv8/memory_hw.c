@@ -190,6 +190,10 @@
 /* Stage 2 Level 3 */
 #define VMM_L3_PTE_NUM          MAX_ENTRY
 
+/* Calcuate distance from base address to descriptor boundary */
+#define Boundary(Base, Mask, Size)  (((Base) & ~Mask) + Sizke)
+#define calcuate_distance(Base, Mask, Size) (Boundary(Base, Mask, Size) - (Base))
+
 /**
  * \defgroup VTTBR
  *
@@ -643,8 +647,8 @@ static struct lpaed *guest_memory_get_ttbl3(int gid, struct memmap_desc *md,
 static void guest_memory_map_l2_desc_to_ttbl3(union lpaed *desc,
         union lpaed *ttbl3, struct memmap_desc *md)
 {
-    lpaed_guest_stage2_conf_l2_table(desc, (uint64_t)
-            ((uint64_t) ttbl3), LPAED_VALID);
+    lpaed_guest_stage2_conf_l2_table(desc,
+            (uint64_t) ((uint64_t) ttbl3), LPAED_VALID);
     guest_memory_init_ttbl3(ttbl3, md);
 }
 
@@ -676,7 +680,7 @@ static void guest_memory_init_ttbl2(union lpaed *ttbl2,
 
     while (md->size) {
         // remained memory area size from va to current discriptor boundary
-        l2_remain = (((md->va) & ~L2_REMAIN_MASK) + SZ_2M) - (md->va);
+        l2_remain = calcuate_distance(md->va, L2_REMAIN_MASK, SZ_2M);
 
         if ((md->size) < l2_remain) {
             // tail
@@ -779,7 +783,7 @@ static void guest_memory_init_ttbl1(union lpaed *ttbl1,
 
     while (md->size) {
         // remained memory area size from va to current discriptor boundary
-        l1_remain = (((md->va) & ~L1_REMAIN_MASK) + SZ_1G) - (md->va);
+        l1_remain = calcuate_distance(md->va, L1_REMAIN_MASK, SZ_1G);
 
         if ((md.size) < l1_remain ) {
             // tail
@@ -826,7 +830,7 @@ static void guest_memory_init_ttbl(union lpaed *ttbl0,
         struct memmap_desc *md, int gid)
 {
     lpaed_guest_stage2_conf_l0_table(ttbl0,
-            (uint64_t)(uint64_t)_ttbl1_guest[gid], 1);
+            (uint64_t)(uint64_t)_ttbl1_guest[gid], LPAED_VALID);
     guest_memory_init_ttbl1(_ttbl1_guest[gid], md, gid);
 }
 
